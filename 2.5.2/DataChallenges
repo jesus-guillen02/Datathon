@@ -1,0 +1,20 @@
+import csv
+
+# Define the file path
+file_path = "C:/Users/jesse/Documents/UTSA Documents/Datathon/Data/Data/2017-18-crdc-data/2017-18 Public-Use Files/Data/LEA/CRDC/CSV/LEA Characteristics.csv"  # Replace with the actual file path
+
+# Initialize a row count variable
+row_count = 0
+
+# Open the CSV file
+with open(file_path, 'r') as file:
+    # Create a CSV reader
+    csv_reader = csv.reader(file)
+    
+    # Iterate through the rows in the CSV file
+    for row in csv_reader:
+        # Increment the row count for each row
+        row_count += 1
+
+# Print the total number of rows
+print("Total number of rows:", row_count)
