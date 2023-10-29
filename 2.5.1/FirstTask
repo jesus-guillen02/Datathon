@@ -1,0 +1,109 @@
+import os
+import pandas as pd
+import matplotlib.pyplot as plt
+
+def filter_and_save_data(filename, state_code, output_filename, column_index=None):
+    if filename.endswith('.xls'):
+        data = pd.read_excel(filename, header=2)
+    else:
+        try:
+            data = pd.read_csv(filename, encoding='Windows-1252', low_memory=False, header=2)
+        except UnicodeDecodeError:
+            data = pd.read_csv(filename, encoding='utf-8', low_memory=False, header=2)
+
+    filtered_data = data[data.iloc[:, 0] == state_code]
+    if not os.path.exists(state_code):
+        os.makedirs(state_code)
+    filtered_data.to_csv(os.path.join(state_code, output_filename), index=False)
+
+    if column_index is not None:
+        return filtered_data.iloc[:, column_index].dropna()
+
+def add_labels_to_boxplot(bp, data):
+    label_names = ['Min', 'Q1', 'Median', 'Q3', 'Max']
+    
+    for i, box in enumerate(bp['boxes']):
+        q1, q3, median, lower_whisker, upper_whisker = data[i].quantile([0.25, 0.75, 0.5, 0, 1])
+        mean_val = data[i].mean()
+        x_position = i + 2500
+        label_y_position = 0.5 if i == 0 else 1.5
+        label = f'Min: {lower_whisker:.2f}, Q1: {q1:.2f}, Median: {median:.2f}, Q3: {q3:.2f}, Max: {upper_whisker:.2f}, Mean: {mean_val:.2f}'
+        plt.text(x_position, label_y_position, label, ha='center', va='center', fontsize=8, bbox=dict(facecolor='white', alpha=0.7, edgecolor='none', boxstyle="round,pad=0.3"))
+        plt.plot(mean_val, i + 1, marker='D', color='red', markersize=6)
+
+def get_lower_than_Q1(data, column_index):
+    q1 = data.iloc[:, column_index].quantile(0.25)
+    return data[data.iloc[:, column_index] < q1]
+
+def output_data_below_Q1(filename, state_code, column_index, dataset_name):
+    if filename.endswith('.xls'):
+        data = pd.read_excel(filename, header=2)
+    else:
+        try:
+            data = pd.read_csv(filename, encoding='Windows-1252', low_memory=False, header=2)
+        except UnicodeDecodeError:
+            data = pd.read_csv(filename, encoding='utf-8', low_memory=False, header=2)
+    
+    filtered_data = data[data.iloc[:, 0] == state_code]
+    
+    q1_value = filtered_data.iloc[:, column_index].quantile(0.25)
+    below_q1_data = filtered_data[filtered_data.iloc[:, column_index] < q1_value]
+
+    return below_q1_data
+
+
+def output_data_above_Q3(filename, state_code, column_index, dataset_name):
+    if filename.endswith('.xls'):
+        data = pd.read_excel(filename, header=2)
+    else:
+        try:
+            data = pd.read_csv(filename, encoding='Windows-1252', low_memory=False, header=2)
+        except UnicodeDecodeError:
+            data = pd.read_csv(filename, encoding='utf-8', low_memory=False, header=2)
+    
+    filtered_data = data[data.iloc[:, 0] == state_code]
+    
+    q3_value = filtered_data.iloc[:, column_index].quantile(0.75)
+    above_q3_data = filtered_data[filtered_data.iloc[:, column_index] > q3_value]
+
+    return above_q3_data
+
+def main():
+    dataset1_path = "C:/Users/saman/Downloads/Datathon/Data/2017-18-crdc-data/2017-18 Public-Use Files/Data/LEA/CRDC/CSV/LEA Characteristics.csv"
+    dataset2_path = "C:/Users/saman/Downloads/Datathon/Data/ussd17.xls"
+
+    state_code = input("Enter the state code (e.g., TX for Texas): ")
+
+    data1_for_plot = filter_and_save_data(dataset1_path, state_code, f'{state_code}_filtered_LEA_data.csv', column_index=8)
+    data2_for_plot = filter_and_save_data(dataset2_path, state_code, f'{state_code}_filtered_SAIPE_data.csv', column_index=6)
+
+    data1_below_q1 = output_data_below_Q1(dataset1_path, state_code, 8, 'LEA')
+    data1_above_q3 = output_data_above_Q3(dataset1_path, state_code, 8, 'LEA')
+    data2_below_q1 = output_data_below_Q1(dataset2_path, state_code, 6, 'SAIPE')
+
+    # Save tables as CSV
+    data1_below_q1.to_csv(os.path.join(state_code, f'{state_code}_below_Q1_LEA.csv'), index=False)
+    data1_above_q3.to_csv(os.path.join(state_code, f'{state_code}_above_Q3_LEA.csv'), index=False)
+    data2_below_q1.to_csv(os.path.join(state_code, f'{state_code}_below_Q1_SAIPE.csv'), index=False)
+
+    # Boxplot
+    plt.figure(figsize=(12, 6))
+    bp = plt.boxplot([data1_for_plot, data2_for_plot], vert=False, labels=['Enrollment', 'Students in Poverty'], patch_artist=True)
+    colors = ['lightblue', 'lightgreen']
+    for patch, color in zip(bp['boxes'], colors):
+        patch.set_facecolor(color)
+
+    lower_limit = min(data1_for_plot.min(), data2_for_plot.min()) - 100
+    upper_limit = max(data1_for_plot.quantile(0.75), data2_for_plot.quantile(0.75)) + 3000
+    plt.xlim(lower_limit, upper_limit + 2000)
+    plt.ylim(0, len(bp['boxes']) + 1)
+
+    add_labels_to_boxplot(bp, [data1_for_plot, data2_for_plot])
+
+    plt.title(f'Boxplot comparison for {state_code}')
+    plt.xlabel('Number of Students')
+    plt.savefig(os.path.join(state_code, f'{state_code}_boxplot_comparison.png'))
+    plt.show()
+
+if __name__ == "__main__":
+    main()
